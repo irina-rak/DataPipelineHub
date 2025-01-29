@@ -1,0 +1,4 @@
+root_dir: ${oc.env:PWD}
+dirs:
+  input_dir: ${root_dir}/datasets/fl_split/2_clients/client_2/train/
+  output_dir: ${root_dir}/datasets/output/2_clients/client_2/train/

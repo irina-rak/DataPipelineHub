@@ -1,0 +1,9 @@
+login:
+  anonymous: "must"
+  key: "d8f351392d57cb1aca962758871360965597b7af"
+  verify: true
+  relogin: true
+# init:
+#   entity: "tearina"
+#   project: "federated_learning"
+#   name: "chest_xray_4_clients"
