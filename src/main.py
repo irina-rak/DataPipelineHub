@@ -21,11 +21,11 @@ def tui(ctx: typer.Context):
 def explain():
     """
 
-    Analyzer App: A CLI tool for image dataset statistical analysis.
+    DataPipelineHub: A CLI tool for image dataset splitting and analysis.
 
     * check: to check the provided configuration file.
 
-    * launch: to launch the GUI for the analysis using the provided configuration file.
+    * split: to split the dataset into training, validation, and test sets, or to split the dataset into n splits for federated learning purposes.
 
     ---
 

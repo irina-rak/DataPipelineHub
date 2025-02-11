@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.model_selection import StratifiedGroupKFold, StratifiedShuffleSplit
 
 
 def read_csv(file_path: str) -> pd.DataFrame:
@@ -244,7 +244,141 @@ def remove_random_healthy_patients(df: pd.DataFrame, ratio: float = 0.5):
     return _df.drop(healthy_patients_to_remove.index)
 
 
-# --- Plotting functions ---
+def get_labels_distribution(
+    data: pd.DataFrame, column: str, labels: dict
+) -> Dict[str, int]:
+    """Get the distribution of the labels in a column.
+
+    Args:
+    -----
+        data (pd.DataFrame): The data to get the distribution from.
+        column (str): The column to get the distribution from.
+        labels (dict): The actual names of the labels.
+
+    Returns:
+    --------
+        Dict[str, int]: The distribution of the labels.
+    """
+    return data[column].map(labels).value_counts().to_dict()
+    # return data[column].value_counts().to_dict()
+
+
+def invert_dict(d: Dict[str, int]) -> Dict[int, str]:
+    """Invert a dictionary of dictionaries.
+
+    Args:
+    -----
+        d (Dict[str, int]): The dictionary to invert.
+
+    Returns:
+    --------
+        Dict[int, str]: The inverted dictionary.
+    """
+    flipped = defaultdict(dict)
+    for key, value in d.items():
+        for k, v in value.items():
+            flipped[k][key] = v
+
+    return dict(flipped)
+
+
+def get_dummy_labels(df: pd.DataFrame) -> pd.DataFrame:
+    """Transforms the labels into one-hot encoded labels.
+
+    Args:
+    -----
+        data (pd.DataFrame): Dataframe containing the labels.
+
+    Returns:
+    --------
+        pd.DataFrame: Dataframe with one-hot encoded labels.
+    """
+    data_df = df.copy()
+    labels = (
+        pd.get_dummies(df["Finding Labels"].str.split("|").explode())
+        .groupby(level=0)
+        .sum()
+    )
+    data_df = pd.concat([data_df, labels], axis=1)
+    return data_df
+
+
+def stratified_train_test_split(
+    df_file: Union[str, pd.DataFrame]
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split the data into train, validation, and test sets
+
+    Args:
+    -----
+        file_path (str): Path to the csv file or the DataFrame containing the data
+    """
+    if isinstance(df_file, str):
+        df = pd.read_csv(df_file)
+    else:
+        df = df_file.copy()
+
+    # Create 5 splits and merge the 4 splits to create the training set and the last split to create the test set
+    sss = StratifiedShuffleSplit(n_splits=5, test_size=0.2, random_state=42)
+    train_df = None
+    val_df = None
+    for train_index, test_index in sss.split(df, df["Finding Labels"]):
+        train_df = df.iloc[train_index]
+        val_df = df.iloc[test_index]
+
+    return train_df, val_df
+
+
+def get_images_df(
+    directory: str,
+    sets: list = ["train", "val", "test"],
+    dataset_name: str = "COVID-19_Radiography_Dataset",
+) -> pd.DataFrame:
+    """Get the images from a directory and store them in a DataFrame.
+
+    Args:
+    -----
+        directory (str): The directory containing the images.
+
+    Returns:
+    --------
+        pd.DataFrame: The DataFrame containing the images.
+    """
+    data_df = pd.DataFrame(columns=["Image Index", "Finding Labels", "Path"])
+
+    for _set in sets:
+        data_dir = join(directory, _set)
+        for entry in scandir(data_dir):
+            if entry.is_dir():
+                label = entry.name
+                img_list = [
+                    img
+                    for img in scandir(entry.path)
+                    if img.is_file() and img.name.endswith(".png")
+                ]
+                data_df = pd.concat(
+                    [
+                        data_df,
+                        pd.DataFrame(
+                            {
+                                "Image Index": [img.name for img in img_list],
+                                "Finding Labels": label,
+                                "Path": [
+                                    entry.path.replace(
+                                        f"../datasets/splitted_dataset/{_set}",
+                                        dataset_name,
+                                    )
+                                    for img in img_list
+                                ],
+                            }
+                        ),
+                    ],
+                    ignore_index=True,
+                )
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------- Plotting functions ------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------------------
 
 
 def plot_age_distribution(
@@ -360,44 +494,6 @@ def plot_disease_distribution(data, plot_title: str = "Diseases distribution"):
 
     for i in ax.containers:
         ax.bar_label(i, label_type="edge")
-
-
-def get_labels_distribution(
-    data: pd.DataFrame, column: str, labels: dict
-) -> Dict[str, int]:
-    """Get the distribution of the labels in a column.
-
-    Args:
-    -----
-        data (pd.DataFrame): The data to get the distribution from.
-        column (str): The column to get the distribution from.
-        labels (dict): The actual names of the labels.
-
-    Returns:
-    --------
-        Dict[str, int]: The distribution of the labels.
-    """
-    return data[column].map(labels).value_counts().to_dict()
-    # return data[column].value_counts().to_dict()
-
-
-def invert_dict(d: Dict[str, int]) -> Dict[int, str]:
-    """Invert a dictionary of dictionaries.
-
-    Args:
-    -----
-        d (Dict[str, int]): The dictionary to invert.
-
-    Returns:
-    --------
-        Dict[int, str]: The inverted dictionary.
-    """
-    flipped = defaultdict(dict)
-    for key, value in d.items():
-        for k, v in value.items():
-            flipped[k][key] = v
-
-    return dict(flipped)
 
 
 def plot_data_distribution(
